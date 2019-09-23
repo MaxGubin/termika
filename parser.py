@@ -25,15 +25,14 @@ def calculate_word_counts(text : Text)->Counter:
   words = nltk.word_tokenize(text)
   return Counter((w.lower() for w in words if ONLY_LETTER_WORDS.match(w)))
 
-def parse_file(flpath: Text):
+def parse_file(flpath: Text, processing_closure):
   """."""
   with open(flpath) as f:
     parsed = json.load(f)
     for q in parsed['Questions']:
-      print(
-          calculate_word_counts(extract_html_fragment_text('<div>'+q['Help']+'</div>')))
-      break
-
+      process_field = lambda field_name: calculate_word_counts(
+          extract_html_fragment_text('<div>'+q[field_name]+'</div>'))
+      processing_closure(process_field('Help'), process_field('Content'))
 
 if __name__ == '__main__':
   parse_file('../data/1001/instruction.json')
