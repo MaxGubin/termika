@@ -2,16 +2,12 @@
 import json
 import xml.sax as sax
 from collections import Counter
-from typing import Dict, List, Tuple, Text
-import re
-import nltk
-# nltk initialization.
-nltk.download('punkt')
+from typing import Dict, List, Tuple, Text, Iterator
+import os
 
-ONLY_LETTER_WORDS = re.compile('\w+')
 
 def extract_html_fragment_text(fragment:Text) -> Text:
-  """."""
+  """Converts HTML to text."""
   class XMLTextExtractor(sax.handler.ContentHandler):
     def __init__(self):
       self.buffer = ''
@@ -21,19 +17,33 @@ def extract_html_fragment_text(fragment:Text) -> Text:
   sax.parseString(fragment, handler=handler)
   return handler.buffer
 
-def calculate_word_counts(text : Text)->Counter:
-  words = nltk.word_tokenize(text)
-  return Counter((w.lower() for w in words if ONLY_LETTER_WORDS.match(w)))
 
-def parse_file(flpath: Text, processing_closure):
-  """."""
+def parse_file(flpath: Text):
+  """Iterates over one fle and returns "Help" and "Content" fields for every
+  question."""
   with open(flpath) as f:
     parsed = json.load(f)
     for q in parsed['Questions']:
-      process_field = lambda field_name: calculate_word_counts(
-          extract_html_fragment_text('<div>'+q[field_name]+'</div>'))
-      processing_closure(process_field('Help'), process_field('Content'))
+      process_field = lambda field_name: extract_html_fragment_text(
+          '<div>'+q[field_name]+'</div>').strip()
+      yield process_field('Help'), process_field('Content')
+
+
+def parse_files(filepaths: Iterator[Text]):
+  """Iterate all fields inside all filepaths."""
+  for flpath in filepaths:
+    for i,v in parse_file(flpath):
+      yield i,v
+
+
+def parse_directory(path: Text):
+  """Iterate all fields inside a directory.""" 
+  for root, dirs, files in os.walk(path, topdown=True):
+    for i,v in parse_files(os.path.join(root, fl) for fl in files if fl.endswith('json')):
+       yield i,v
+
 
 if __name__ == '__main__':
-  parse_file('../data/1001/instruction.json')
+  for i,v in parse_directory('../data/'):
+    print (i,'+',v)
 
